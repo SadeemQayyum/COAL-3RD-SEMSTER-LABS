@@ -1,0 +1,17 @@
+mov ax,32
+add ax,42
+add ax,3
+mov bx,15
+sub bx,ax
+mov ax,3
+add ax,5
+add ax,3
+mov ax,9
+mov bx,5
+sub bx,ax
+add ax,bx
+mov ax,3
+sub bx,5
+add ax,1
+mov bx,9
+add ax,bx
