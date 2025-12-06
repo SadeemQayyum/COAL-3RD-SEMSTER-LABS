@@ -15,6 +15,14 @@ mov ah, 2
 int 21h   
 loop L1
 
+L2:
+pop dx
+mov ah,2
+mov dl,dl
+int 21h
+Loop L2
+
+
 
 
 
