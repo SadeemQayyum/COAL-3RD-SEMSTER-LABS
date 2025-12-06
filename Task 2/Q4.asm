@@ -14,4 +14,5 @@ mov ax,3
 sub bx,5
 add ax,1
 mov bx,9
-add ax,bxbx
+add ax,bx
+
