@@ -43,7 +43,7 @@ typing_wpm    DW 0         ; WPM
 
 ; Buffers
 input_buffer DB 500 DUP(0)       ; user typed text
-reference_words DB 80*30 DUP(0)  ; 80 words × 30 bytes each
+reference_words DB 80*30 DUP(0)  ; 80 words   30 bytes each
 word_count DW 0                  ; number of reference words
 
 ; The whole paragraph (used for reference parsing)
@@ -149,55 +149,47 @@ WAIT_TO_START ENDP
 ; ============================================================
 ; START TYPING (capture 60 seconds)
 ; ============================================================
+
 START_TEST PROC
     MOV AH,00H
     INT 1AH
-    MOV start_time,DX          ; save start tick
+    MOV start_time,DX
 
     LEA DI,input_buffer
     MOV total_chars,0
 
-t2_loop:
-    CALL CHECK_TIME_UP
-    CMP AX,1
-    JE t2_done
+fast_loop:
 
-    MOV AH,01H                ; key available?
-    INT 16H
-    JZ t2_loop
-
+    ; ? Direct wait for key (NO polling)
     MOV AH,00H
-    INT 16H                   ; Read char to AL
+    INT 16H           ; Wait for key press
 
-    ; Filter unwanted keys
-    CMP AL,0Dh
-    JE t2_done
-    CMP AL,0Ah
-    JE t2_loop
-    CMP AL,09h
-    JE t2_loop
-    CMP AL,32
-    JB t2_loop
-    CMP AL,126
-    JA t2_loop
+    CMP AL,0Dh        ; ENTER key?
+    JE fast_done
 
-    MOV [DI],AL               ; store char
+    MOV [DI],AL
     INC DI
     INC total_chars
 
-    MOV DL,AL                 ; echo typed char
-    MOV AH,02H
-    INT 21H
+    ; ? FAST BIOS character output (EMU8086 SAFE)
+    MOV AH,0Eh
+    MOV BH,0
+    MOV BL,07h
+    INT 10H
 
-    JMP t2_loop
+    ; ? Time check after each key
+    CALL CHECK_TIME_UP
+    CMP AX,1
+    JE fast_done
 
-t2_done:
+    JMP fast_loop
+
+fast_done:
     MOV AH,09H
     LEA DX,time_up_msg
     INT 21H
     RET
 START_TEST ENDP
-
 
 ; ============================================================
 ; CHECK IF 60 SECONDS PASSED
@@ -207,7 +199,7 @@ CHECK_TIME_UP PROC
     INT 1AH
     SUB DX,start_time
     MOV AX,DX
-    MOV CX,18            ; 18 ticks ˜ 1 sec
+    MOV CX,18            ; 18 ticks   1 sec
     MOV DX,0
     DIV CX
     CMP AX,60
@@ -223,26 +215,42 @@ CHECK_TIME_UP ENDP
 ; ============================================================
 ; COUNT HOW MANY WORDS USER TYPED
 ; ============================================================
-COUNT_TYPED_WORDS PROC
-    LEA SI,input_buffer
-    MOV CX,total_chars
-    CMP CX,0
-    JE ct_zero
 
-    MOV total_words,1    ; at least one word
+
+COUNT_TYPED_WORDS PROC
+    LEA SI, input_buffer      ; SI = start of typed text
+    MOV CX, total_chars       ; CX = total characters typed
+    MOV total_words, 0        ; start with 0 words
+
+    CMP CX, 0
+    JE ct_done                ; agar kuch type hi nahi hua -> 0 words
+
+    MOV BL, 0                 
 
 ct_loop:
-    MOV AL,[SI]
-    CMP AL,' '
-    JNE ct_next
-    INC total_words
-ct_next:
-    INC SI
-    LOOP ct_loop
-    RET
+    MOV AL, [SI]              
 
-ct_zero:
-    MOV total_words,0
+    CMP AL, ' '
+    JE ct_space               
+
+    ; ---- non-space character ----
+    CMP BL, 1
+    JE ct_next_char           
+
+    ; yahan pehle space tha, ab new word start ho raha hai
+    INC total_words           
+    MOV BL, 1                
+    JMP ct_next_char
+
+ct_space:
+    ; space mila -> ab word ke bahar hain
+    MOV BL, 0
+
+ct_next_char:
+    INC SI                    ; next character
+    LOOP ct_loop              
+
+ct_done:
     RET
 COUNT_TYPED_WORDS ENDP
 
@@ -477,3 +485,5 @@ NL_PRINT ENDP
 
 
 END MAIN
+
+
