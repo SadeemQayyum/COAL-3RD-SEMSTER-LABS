@@ -158,38 +158,40 @@ START_TEST PROC
     LEA DI,input_buffer
     MOV total_chars,0
 
-fast_loop:
+start_loop:
 
-    ; ? Direct wait for key (NO polling)
+    CALL CHECK_TIME_UP
+    CMP AX,1
+    JE start_done
+
+    MOV AH,01H
+    INT 16H
+    JZ start_loop
+
     MOV AH,00H
-    INT 16H           ; Wait for key press
+    INT 16H
 
-    CMP AL,0Dh        ; ENTER key?
-    JE fast_done
+    CMP AL,0Dh
+    JE start_done
 
     MOV [DI],AL
     INC DI
     INC total_chars
 
-    ; ? FAST BIOS character output (EMU8086 SAFE)
     MOV AH,0Eh
     MOV BH,0
     MOV BL,07h
     INT 10H
 
-    ; ? Time check after each key
-    CALL CHECK_TIME_UP
-    CMP AX,1
-    JE fast_done
+    JMP start_loop
 
-    JMP fast_loop
-
-fast_done:
+start_done:
     MOV AH,09H
     LEA DX,time_up_msg
     INT 21H
     RET
 START_TEST ENDP
+
 
 ; ============================================================
 ; CHECK IF 60 SECONDS PASSED
@@ -485,5 +487,4 @@ NL_PRINT ENDP
 
 
 END MAIN
-
 
